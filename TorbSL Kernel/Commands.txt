@@ -1,0 +1,6 @@
+build and run (qemu):
+
+nasm -f bin .\boot.asm -o .\boot.bin; nasm -f bin .\kernel.asm -o .\kernel.bin; $boot = [IO.File]::ReadAllBytes(".\boot.bin"); $kernel = [IO.File]::ReadAllBytes(".\kernel.bin"); $img = [IO.File]::Create(".\floppy.img"); $img.Write($boot, 0, $boot.Length); $img.Write($kernel, 0, $kernel.Length); $rem = 1474560 - $img.Length; if ($rem -gt 0) { $img.Write((New-Object byte[] $rem), 0, $rem) }; $img.Close(); & "C:\Program Files\qemu\qemu-system-i386.exe" -drive format=raw,file=.\floppy.img
+
+shell commands:
+info, clear, reboot, mem, help, beep, echo, crash, panic
