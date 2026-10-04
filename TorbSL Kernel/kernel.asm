@@ -1,6 +1,8 @@
 use16
 org 0x0000
 
+; kernel verison 1.2
+
 start:
      cld
 
@@ -56,16 +58,33 @@ main_loop:
      je do_clear
 
      mov si, input_buffer
+     mov di, math_help_cmd
+     call str_eq
+     cmp al, 1
+     je do_math_help
+
+     mov si, input_buffer
      mov di, reboot_cmd
      call str_eq
      cmp al, 1
      je do_reboot
 
      mov si, input_buffer
+     mov di, uptime_cmd
+     call str_eq
+     cmp al, 1
+     je do_uptime
+
+     mov si, input_buffer
      mov di, mem_cmd
      call str_eq
      cmp al, 1
      je do_mem
+
+     mov si, input_buffer
+     call try_math
+     cmp al, 1
+     je main_loop
 
      mov si, input_buffer
      cmp byte [si], 'e'
@@ -84,8 +103,6 @@ main_loop:
      je do_echo
 
 .not_echo:
-
-
 
      mov si, input_buffer
      mov di, help_cmd
@@ -321,6 +338,167 @@ do_crash:
 divide_error:
      jmp kernel_panic
 
+do_math_help:
+     mov si, math_help_msg
+     call print
+     call newline
+     jmp main_loop
+
+try_math:
+     push si
+     push bx
+     push cx
+     push dx
+
+     call parse_number
+     jc .not_math
+
+     mov bx, ax
+
+     lodsb
+
+     cmp al, '+'
+     je .add
+     cmp al, '-'
+     je .sub
+     cmp al, '*'
+     je .mul
+     cmp al, '/'
+     je .div
+
+     jmp .not_math
+
+.add:
+     call parse_number
+     jc .not_math
+
+     add bx, ax
+     mov ax, bx
+     jmp .result
+
+.sub:
+     call parse_number
+     jc .not_math
+
+     sub bx, ax
+     mov ax, bx
+     jmp .result
+
+.mul:
+     call parse_number
+     jc .not_math
+
+     imul bx, ax
+     mov ax, bx
+     jmp .result
+
+.div:
+     call parse_number
+     jc .not_math
+
+     cmp ax, 0
+     je .divide_zero
+
+     mov cx, ax
+     mov ax, bx
+     xor dx, dx
+
+     div cx
+
+     jmp .result
+
+.divide_zero:
+     mov si, divide_msg
+     call print
+     call newline
+     jmp .success
+
+.result:
+     call print_num
+     call newline
+
+.success:
+     pop dx
+     pop cx
+     pop bx
+     pop si
+
+     mov al, 1
+     ret
+
+.not_math:
+     pop dx
+     pop cx
+     pop bx
+     pop si
+
+     xor al, al
+     ret
+
+do_uptime:
+     push ds
+     mov ax, 0x0040
+     mov ds, ax
+     mov ax, [0x006C]
+     pop ds
+
+     xor dx, dx
+     mov bx, 18
+     div bx
+
+     push ax
+     mov si, uptime_msg
+     call print
+     pop ax
+     call print_num
+
+     mov si, seconds_msg
+     call print
+     call newline
+     jmp main_loop
+
+parse_number:
+     push bx
+     xor ax, ax
+     xor cx, cx
+
+.parse:
+     mov dl, [si]
+
+     cmp dl, '0'
+     jb .done
+
+     cmp dl, '9'
+     ja .done
+
+     sub dl, '0'
+     xor dh, dh
+
+     push dx
+     mov bx, 10
+     mul bx
+     pop dx
+
+     add ax, dx
+
+     inc si
+     inc cx
+
+     jmp .parse
+
+.done:
+     cmp cx, 0
+     je .error
+
+     pop bx
+     clc
+     ret
+
+.error:
+     pop bx
+     stc
+     ret
+
 kernel_panic:
      mov ax, 0x0600
      mov bh, 0x4F
@@ -369,7 +547,7 @@ kernel_panic:
      hlt
      jmp .halt
 
-welcome db "TorbSL v1.0", 0
+welcome db "TorbSL v1.2", 0
 prompt_msg db "TorbSL> ", 0
 INPUT_MAX equ 31
 input_buffer times INPUT_MAX + 1 db 0
@@ -379,10 +557,14 @@ reboot_cmd db "reboot", 0
 mem_msg db "Memory: ", 0
 bytes_msg db " B", 0
 mem_cmd db "mem", 0
+math_help_cmd db "math_help", 0
 ping_cmd db "ping", 0
 help_cmd db "help", 0
+uptime_cmd db "uptime", 0
+seconds_msg db " seconds", 0
 beep_cmd db "beep", 0
 echo_cmd db "echo", 0
+divide_msg db "Error: division by zero. 0x3", 0
 ping_msg db "Pong!", 0 ; easter egg
 panic_cmd db "panic", 0 ; hidden command to test kernel panic
 crash_cmd db "crash", 0 ; divide by zero to test kernel panic
@@ -391,10 +573,11 @@ kernel_panic_title db "================ KERNEL PANIC ================", 0
 kernel_panic_msg   db "A fatal error has occurred.", 0
 kernel_panic_code  db "Error code: 0x2", 0
 kernel_panic_stop  db "System halted.", 0
-kernel_panic_hint  db ":(", 0
 
-help_msg db "Commands: info, clear, reboot, mem, help, beep, echo", 0 
-info_msg db "TorbSL v1.0 (2026)", 0
+math_help_msg db "Mathematical operations: +, -, *, /, example: 5+3, most math isnt always correct due to 16-bit limitations", 0
+uptime_msg db "System uptime: ", 0
+help_msg db "Commands: info, clear, reboot, mem, help, beep, echo, math_help, uptime", 0 
+info_msg db "TorbSL v1.2 (2026-10-04)", 0
 unknown_msg db "Unknown command.", 0
 
 kernel_end:
