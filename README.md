@@ -26,3 +26,10 @@ Basic arithmetic expressions using +, -, *, and /
 Kernel panic screen
 
 No operating system or standard library required
+
+install:
+
+    git clone https://github.com/bb7716546/TorbSL.git
+    cd TorbSL
+    qemu-system-i386 -drive format=raw,file=torbsl.img
+
