@@ -31,5 +31,5 @@ install:
 
     git clone https://github.com/bb7716546/TorbSL.git
     cd TorbSL
-    qemu-system-i386 -drive format=raw,file=torbsl.img
+    qemu-system-i386 -drive format=raw,file=floppy.img
 
